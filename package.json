@@ -1,0 +1,100 @@
+{
+  "name": "text-utils",
+  "displayName": "text-utils",
+  "description": "Text Manipulation Utility",
+  "version": "0.0.1",
+  "engines": {
+    "vscode": "^1.108.1"
+  },
+  "categories": [
+    "Other"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "text-utils.normalize",
+        "title": "Text Utilities: Normalize Characters"
+      }
+    ],
+    "configuration": {
+      "title": "Text Utilities",
+      "properties": {
+        "textUtils.mappings": {
+          "type": "object",
+          "default": {
+            "\\u2014": "-",
+            "\\u2013": "-",
+            "\\u2212": "-",
+            "\\u2010": "-",
+            "\\u2011": "-",
+            "\\u2012": "-",
+            "\\u2015": "-",
+            "\\u2043": "-",
+            "\\u201C": "\"",
+            "\\u201D": "\"",
+            "\\u201E": "\"",
+            "\\u201F": "\"",
+            "\\u2018": "'",
+            "\\u2019": "'",
+            "\\u201A": "'",
+            "\\u201B": "'",
+            "\\u2032": "'",
+            "\\u2035": "'",
+            "\\u2026": "...",
+            "\\u2022": "*",
+            "\\u00B7": ".",
+            "\\u00A0": " ",
+            "\\u00AD": "",
+            "\\u200B": "",
+            "\\u200C": "",
+            "\\u200D": "",
+            "\\u2060": "",
+            "\\u200E": "",
+            "\\u200F": "",
+            "\\u202A": "",
+            "\\u202B": "",
+            "\\u202C": "",
+            "\\u202D": "",
+            "\\u202E": "",
+            "\\u2066": "",
+            "\\u2067": "",
+            "\\u2068": "",
+            "\\u2069": "",
+            "\\uFEFF": "",
+            "\\u2044": "/",
+            "\\u2192": "->",
+            "\\u2502": "|",
+            "\\u2503": "|",
+            "\\u2223": "|",
+            "\\uFF5C": "|"
+          },
+          "description": "Map of characters to replacement strings. Keys may be literal characters or unicode escape strings like \"\\\\u201D\"."
+        },
+        "textUtils.disallowedCharRegex": {
+          "type": "string",
+          "default": "/[^A-Za-z0-9 ,.\"'()\\[\\];:/?><!@#$%^&*+=\\-\\\\ \\t\\r\\n{}|]/g",
+          "description": "Regex (string form) that matches disallowed characters. Supports '/pattern/flags' or plain 'pattern'."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "pretest": "npm run compile && npm run lint",
+    "lint": "eslint src",
+    "test": "vscode-test"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.108.1",
+    "@types/mocha": "^10.0.10",
+    "@types/node": "22.x",
+    "typescript-eslint": "^8.52.0",
+    "eslint": "^9.39.2",
+    "typescript": "^5.9.3",
+    "@vscode/test-cli": "^0.0.12",
+    "@vscode/test-electron": "^2.5.2"
+  }
+}
