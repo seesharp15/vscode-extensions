@@ -3,10 +3,21 @@ import * as vscode from "vscode";
 const DEFAULT_DISALLOWED_CHAR_REGEX =
   /[^A-Za-z0-9 ,."'()\[\];:/?><!@#$%^&*+=\-\\ \t\r\n{}|]/;
 
+const LOG_LEVELS = ["TRACE", "DEBUG", "INFO", "WARN", "ERROR", "OFF"] as const;
+const LOG_DESTINATIONS = ["both", "outputChannel", "file"] as const;
+
+const DEFAULT_LOGGING_CONFIG: TextUtilsLoggingConfig = {
+  level: "DEBUG",
+  destination: "both",
+  filePath: ".text-utils-logs/normalize.log",
+  showOutputChannelOnRun: true,
+};
+
 export type TextUtilsConfig = {
   map: Map<string, string>;
   allowedOutputChars: Set<string>; // derived from replacement VALUES only
   disallowedRegex: RegExp;
+  logging: TextUtilsLoggingConfig;
 };
 
 export type RawMapEntry =
@@ -14,6 +25,23 @@ export type RawMapEntry =
   | { replaceWith?: unknown; description?: string }
   | null
   | undefined;
+
+export type LogLevel = (typeof LOG_LEVELS)[number];
+export type LogDestination = (typeof LOG_DESTINATIONS)[number];
+
+export type TextUtilsLoggingConfig = {
+  level: LogLevel;
+  destination: LogDestination;
+  filePath: string;
+  showOutputChannelOnRun: boolean;
+};
+
+type RawLoggingConfig = Partial<{
+  level: unknown;
+  destination: unknown;
+  filePath: unknown;
+  showOutputChannelOnRun: unknown;
+}>;
 
 function decodeEscapes(s: string): string {
   return s.replace(
@@ -58,13 +86,47 @@ function parseRegexSetting(raw: string | undefined): RegExp {
   }
 }
 
+function buildLoggingConfig(raw: unknown): TextUtilsLoggingConfig {
+  const source: RawLoggingConfig =
+    raw && typeof raw === "object" ? (raw as RawLoggingConfig) : {};
+
+  const level: LogLevel = LOG_LEVELS.includes(source.level as LogLevel)
+    ? (source.level as LogLevel)
+    : DEFAULT_LOGGING_CONFIG.level;
+
+  const destination: LogDestination = LOG_DESTINATIONS.includes(
+    source.destination as LogDestination,
+  )
+    ? (source.destination as LogDestination)
+    : DEFAULT_LOGGING_CONFIG.destination;
+
+  const filePath =
+    typeof source.filePath === "string" && source.filePath.trim().length > 0
+      ? source.filePath.trim()
+      : DEFAULT_LOGGING_CONFIG.filePath;
+
+  const showOutputChannelOnRun =
+    typeof source.showOutputChannelOnRun === "boolean"
+      ? source.showOutputChannelOnRun
+      : DEFAULT_LOGGING_CONFIG.showOutputChannelOnRun;
+
+  return {
+    level,
+    destination,
+    filePath,
+    showOutputChannelOnRun,
+  };
+}
+
 export function buildConfigFromRaw(
   raw: Record<string, RawMapEntry>,
   disallowedRegexSetting?: string,
+  rawLogging?: unknown,
 ): TextUtilsConfig {
   const map = new Map<string, string>();
   const allowedOutputChars = new Set<string>();
   const disallowedRegex = parseRegexSetting(disallowedRegexSetting);
+  const logging = buildLoggingConfig(rawLogging);
 
   for (const [rawKey, rawEntry] of Object.entries(raw ?? {})) {
     if (!rawKey) {
@@ -102,13 +164,14 @@ export function buildConfigFromRaw(
     }
   }
 
-  return { map, allowedOutputChars, disallowedRegex };
+  return { map, allowedOutputChars, disallowedRegex, logging };
 }
 
 export function getTextUtilsConfig(): TextUtilsConfig {
   const cfg = vscode.workspace.getConfiguration("textUtils");
   const raw = cfg.get<Record<string, RawMapEntry>>("map") ?? {};
   const disallowedRegexSetting = cfg.get<string>("disallowedCharRegex");
+  const rawLogging = cfg.get<unknown>("logging");
 
-  return buildConfigFromRaw(raw, disallowedRegexSetting);
+  return buildConfigFromRaw(raw, disallowedRegexSetting, rawLogging);
 }

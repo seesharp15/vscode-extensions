@@ -46,35 +46,35 @@ function sortedChars(chars: Iterable<string>): string[] {
 }
 
 function logConfig(
-  log: (message: string) => void,
+  debug: (message: string) => void,
   config: TextUtilsConfig,
 ): void {
-  log(
+  debug(
     `Config summary: mapEntries=${config.map.size}, allowedOutputChars=${config.allowedOutputChars.size}, disallowedRegex=/${config.disallowedRegex.source}/${config.disallowedRegex.flags}`,
   );
-  log("Configured map entries (input => replacement):");
+  debug("Configured map entries (input => replacement):");
   for (const [from, to] of Array.from(config.map.entries())) {
-    log(`MAP ${describeChar(from)} => ${describeText(to)}`);
+    debug(`MAP ${describeChar(from)} => ${describeText(to)}`);
   }
-  log("Allowed output characters (derived from replacement values):");
+  debug("Allowed output characters (derived from replacement values):");
   for (const ch of sortedChars(config.allowedOutputChars)) {
-    log(`ALLOWED ${describeChar(ch)}`);
+    debug(`ALLOWED ${describeChar(ch)}`);
   }
 }
 
 function logTraceEvent(
-  log: (message: string) => void,
+  debug: (message: string) => void,
   rangeLabel: string,
   event: NormalizeTraceEvent,
 ): void {
   if (event.kind === "input") {
-    log(
+    debug(
       `${rangeLabel} INPUT[${event.index}] char=${describeChar(event.char, event.codePoint)} mapped=${event.mapped} replacement=${describeText(event.replacement)} disallowed=${event.disallowed}`,
     );
     return;
   }
 
-  log(
+  debug(
     `${rangeLabel} OUTPUT[${event.index}] char=${describeChar(event.char, event.codePoint)} disallowed=${event.disallowed} allowedByReplacementValue=${event.allowedByReplacementValue} illegal=${event.illegal}`,
   );
 }
@@ -108,19 +108,19 @@ export async function runNormalizeCommand(
     return;
   }
 
-  const logger = await createDetailedLogger(context);
+  const config = getTextUtilsConfig();
+  const logger = await createDetailedLogger(config.logging, context);
 
   try {
     logger.show();
-    logger.log(
+    logger.info(
       `Command started for document '${editor.document.uri.toString()}'`,
     );
 
-    const config = getTextUtilsConfig();
     const ranges = getTargetRanges(editor);
 
-    logger.log(`Target range count: ${ranges.length}`);
-    logConfig(logger.log, config);
+    logger.info(`Target range count: ${ranges.length}`);
+    logConfig(logger.debug, config);
 
     // Pre-check all ranges first (atomic decision)
     let hasAnyIssues = false;
@@ -131,29 +131,29 @@ export async function runNormalizeCommand(
     for (const [rangeIndex, range] of ranges.entries()) {
       const rangeLabel = `RANGE[${rangeIndex}](${describeRange(range)})`;
       const original = editor.document.getText(range);
-      logger.log(
+      logger.debug(
         `${rangeLabel} originalLength=${original.length} originalText=${describeText(original)}`,
       );
 
       if (!original) {
-        logger.log(`${rangeLabel} skipped because selection text is empty.`);
+        logger.debug(`${rangeLabel} skipped because selection text is empty.`);
         continue;
       }
 
       const result = normalizeText(original, config, {
-        onTrace: (event) => logTraceEvent(logger.log, rangeLabel, event),
+        onTrace: (event) => logTraceEvent(logger.debug, rangeLabel, event),
       });
 
-      logger.log(
+      logger.debug(
         `${rangeLabel} resultText=${describeText(result.text)} unmappedSamples=${result.unmappedInputSamples.length} illegalOutputSamples=${result.illegalOutputSamples.length}`,
       );
       if (result.unmappedInputSamples.length > 0) {
-        logger.log(
+        logger.warn(
           `${rangeLabel} unmappedSampleChars=${result.unmappedInputSamples.map((ch) => describeChar(ch)).join(", ")}`,
         );
       }
       if (result.illegalOutputSamples.length > 0) {
-        logger.log(
+        logger.warn(
           `${rangeLabel} illegalOutputSampleChars=${result.illegalOutputSamples.map((ch) => describeChar(ch)).join(", ")}`,
         );
       }
@@ -190,10 +190,10 @@ export async function runNormalizeCommand(
         "Ignore and Apply Known Fixes",
       );
 
-      logger.log(`User decision on warning dialog: ${choice ?? "dismissed"}`);
+      logger.warn(`User decision on warning dialog: ${choice ?? "dismissed"}`);
 
       if (choice !== "Ignore and Apply Known Fixes") {
-        logger.log("Command ended without applying edits.");
+        logger.warn("Command ended without applying edits.");
         return; // dismissed
       }
     }
@@ -202,17 +202,17 @@ export async function runNormalizeCommand(
     const didEdit = await editor.edit((editBuilder) => {
       for (const [rangeIndex, item] of normalizedRanges.entries()) {
         editBuilder.replace(item.range, item.result.text);
-        logger.log(
+        logger.info(
           `RANGE[${rangeIndex}] applied edit originalLength=${item.original.length} outputLength=${item.result.text.length}`,
         );
       }
     });
 
-    logger.log(`Edit transaction success=${didEdit}`);
-    logger.log("Command completed.");
+    logger.info(`Edit transaction success=${didEdit}`);
+    logger.info("Command completed.");
   } catch (err) {
     const reason = err instanceof Error ? err.stack ?? err.message : String(err);
-    logger.log(`Command failed: ${reason}`);
+    logger.error(`Command failed: ${reason}`);
     throw err;
   } finally {
     await logger.close();

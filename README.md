@@ -98,13 +98,18 @@ Every normalize run is logged in detail.
    - every output character (allowed/illegal, code point)
    - edit application result and final status
 
-File logs are also written per run. The exact file path is printed at the start of each run in the Output panel.
+File logs are written based on `textUtils.logging.destination`:
 
-Log write locations (best effort):
+- `both`: Output channel + file
+- `outputChannel`: Output channel only
+- `file`: file only
 
-- Preferred: extension global storage `logs/normalize-<timestamp>-<id>.log`
-- Fallback: `<workspace>/.text-utils-logs/`
-- Final fallback: OS temp dir `text-utils-logs`
+The file path is controlled by `textUtils.logging.filePath`.
+
+Path behavior:
+
+- absolute path: used as-is
+- relative path: resolved from workspace folder (if present), otherwise extension storage/temp fallback
 
 ## Configure replacements and allowed/disallowed logic
 
@@ -112,12 +117,13 @@ Settings are under `textUtils`:
 
 - `textUtils.map`: replacement definitions.
 - `textUtils.disallowedCharRegex`: characters considered disallowed.
+- `textUtils.logging`: logger configuration (level + destination + file path).
 
 ### Edit via Settings UI
 
 1. Open Settings.
 2. Search for `Text Utils`.
-3. Edit `Text Utils: Map` and `Text Utils: Disallowed Char Regex`.
+3. Edit `Text Utils: Map`, `Text Utils: Disallowed Char Regex`, and `Text Utils: Logging`.
 
 ### Edit via `settings.json`
 
@@ -129,9 +135,28 @@ Settings are under `textUtils`:
     "\\u201D": { "replaceWith": "\"", "description": "RIGHT DOUBLE QUOTE" },
     "\\u200B": { "replaceWith": "", "description": "ZERO WIDTH SPACE" }
   },
-  "textUtils.disallowedCharRegex": "/[^A-Za-z0-9 ,.\\\"'()\\[\\];:/?><!@#$%^&*+=\\\\-\\\\ \\\\t\\\\r\\\\n{}|]/g"
+  "textUtils.disallowedCharRegex": "/[^A-Za-z0-9 ,.\\\"'()\\[\\];:/?><!@#$%^&*+=\\\\-\\\\ \\\\t\\\\r\\\\n{}|]/g",
+  "textUtils.logging": {
+    "level": "DEBUG",
+    "destination": "both",
+    "filePath": ".text-utils-logs/normalize.log",
+    "showOutputChannelOnRun": true
+  }
 }
 ```
+
+### Logging level behavior
+
+Logging uses log4j-style threshold behavior:
+
+- `TRACE`: logs everything
+- `DEBUG`: debug + info + warn + error
+- `INFO`: info + warn + error
+- `WARN`: warn + error
+- `ERROR`: error only
+- `OFF`: disables logging
+
+This is a log4j-like configuration model (level + destination + path), but not full log4j appenders/layout syntax.
 
 ## Build, lint, and test commands
 
@@ -177,4 +202,5 @@ Use this when validating changes:
   - Retry with network access.
   - Some environments without external network access can fail in `vscode-test`.
 - No file log created:
-  - Check Output panel; logging falls back to workspace or temp directory and reports the chosen path.
+  - Check `textUtils.logging.destination` and `textUtils.logging.filePath`.
+  - If destination is `file`, verify the configured path is writable.

@@ -118,6 +118,40 @@
           "type": "string",
           "default": "/[^A-Za-z0-9 ,.\"'()\\[\\];:/?><!@#$%^&*+=\\-\\\\ \\t\\r\\n{}|]/g",
           "description": "Regex (string form) that matches disallowed characters. Supports '/pattern/flags' or plain 'pattern'."
+        },
+        "textUtils.logging": {
+          "type": "object",
+          "default": {
+            "level": "DEBUG",
+            "destination": "both",
+            "filePath": ".text-utils-logs/normalize.log",
+            "showOutputChannelOnRun": true
+          },
+          "properties": {
+            "level": {
+              "type": "string",
+              "enum": ["TRACE", "DEBUG", "INFO", "WARN", "ERROR", "OFF"],
+              "default": "DEBUG",
+              "description": "Log threshold. Works like log4j: DEBUG includes INFO/WARN/ERROR; WARN includes WARN/ERROR."
+            },
+            "destination": {
+              "type": "string",
+              "enum": ["both", "outputChannel", "file"],
+              "default": "both",
+              "description": "Where logs are written."
+            },
+            "filePath": {
+              "type": "string",
+              "default": ".text-utils-logs/normalize.log",
+              "description": "Log file path. Absolute paths are supported. Relative paths resolve from the workspace folder when available."
+            },
+            "showOutputChannelOnRun": {
+              "type": "boolean",
+              "default": true,
+              "description": "Whether to focus the Output channel when a run starts (only applies when destination includes outputChannel)."
+            }
+          },
+          "description": "Structured logger settings."
         }
       }
     }
