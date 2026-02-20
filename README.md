@@ -1,32 +1,50 @@
 # vscode-ext
 
-This repository contains a VS Code extension project:
+Beginner-friendly setup and usage guide for the VS Code extension in this repo.
 
-- `text-utils`: Normalize unusual/unsupported characters in text using a configurable replacement map.
+## Project overview
 
-## What `text-utils` does
+This repository currently contains one extension:
 
-- Runs the command `Text Utilities: Normalize Characters` (`text-utils.normalize`).
-- Replaces configured characters (for example smart quotes, em dash, zero-width spaces).
-- Preserves regular allowed characters.
-- Warns when disallowed characters remain unmapped.
-- Produces detailed execution logs for every run, including per-character decisions.
+- `text-utils`: normalizes unusual/unsupported characters using a configurable replacement map.
 
-## Repository layout
+The command exposed by the extension is:
 
-- `text-utils/`: VS Code extension source and build/test scripts.
-- `text-utils/src/`: TypeScript source (`extension.ts`, `normalize.ts`, `config.ts`, `logging.ts`).
-- `text-utils/out/`: Compiled output.
+- `Text Utilities: Normalize Characters` (`text-utils.normalize`)
 
-## Local development
+## What the extension does
 
-Requirements:
+- Replaces configured characters (smart quotes, em dashes, zero-width characters, etc.).
+- Leaves allowed characters unchanged.
+- Warns if disallowed characters remain unmapped.
+- Writes highly detailed logs for each run (per character input/output decisions).
 
-- Node.js 22+ (or a version compatible with the `@types/node` and TypeScript setup)
-- npm
+## Prerequisites
+
+Install these first:
+
+- Node.js 22+ (includes `npm`)
 - VS Code
+- Git
 
-Install and build:
+Check versions:
+
+```bash
+node -v
+npm -v
+git --version
+```
+
+## Quick start (first-time setup)
+
+1. Clone this repository:
+
+```bash
+git clone <your-repo-url>
+cd vscode-ext
+```
+
+2. Install dependencies and build:
 
 ```bash
 cd text-utils
@@ -34,29 +52,74 @@ npm install
 npm run compile
 ```
 
-Useful scripts:
+3. Open the extension project folder in VS Code:
+
+- Recommended: open `vscode-ext/text-utils` as the workspace root.
+- If you prefer terminal:
 
 ```bash
-npm run watch
-npm run lint
-npm run test
+code .
 ```
 
-## Running the extension
+If `code` is not installed, open VS Code and use `File -> Open Folder...` and select `text-utils`.
 
-1. Open the `text-utils` folder in VS Code.
-2. Press `F5` to launch an Extension Development Host.
-3. In the host window, open a document and run:
-   `Text Utilities: Normalize Characters`
+## Run the extension in VS Code (Extension Development Host)
 
-## Configuration
+This is the main path for local testing.
+
+1. In VS Code, make sure you are in the `text-utils` folder.
+2. Press `F5` (`fn+F5` on some keyboards), or open `Run and Debug` and choose `Run Extension`.
+3. VS Code opens a second window called an **Extension Development Host**.
+4. In that second window, create/open a test file and paste sample text such as:
+
+```text
+This is “quoted” text — with … and zero-width​characters.
+```
+
+5. Open Command Palette (`Cmd+Shift+P` on macOS, `Ctrl+Shift+P` on Windows/Linux).
+6. Run `Text Utilities: Normalize Characters`.
+7. Confirm the text is transformed (for example `“` -> `"`, `—` -> `-`, `…` -> `...`).
+
+Behavior note:
+
+- If there is no selection, it normalizes the entire document.
+- If text is selected, it only normalizes the selected ranges.
+
+## How to see detailed logs
+
+Every normalize run is logged in detail.
+
+1. In VS Code, open `View -> Output`.
+2. In the dropdown, select `Text Utils Detailed Log`.
+3. You will see:
+   - config summary and map entries
+   - allowed output characters
+   - every input character (mapped/unmapped, replacement, code point)
+   - every output character (allowed/illegal, code point)
+   - edit application result and final status
+
+File logs are also written per run. The exact file path is printed at the start of each run in the Output panel.
+
+Log write locations (best effort):
+
+- Preferred: extension global storage `logs/normalize-<timestamp>-<id>.log`
+- Fallback: `<workspace>/.text-utils-logs/`
+- Final fallback: OS temp dir `text-utils-logs`
+
+## Configure replacements and allowed/disallowed logic
 
 Settings are under `textUtils`:
 
-- `textUtils.map`: character replacement map.
-- `textUtils.disallowedCharRegex`: regex for characters considered disallowed.
+- `textUtils.map`: replacement definitions.
+- `textUtils.disallowedCharRegex`: characters considered disallowed.
 
-Example:
+### Edit via Settings UI
+
+1. Open Settings.
+2. Search for `Text Utils`.
+3. Edit `Text Utils: Map` and `Text Utils: Disallowed Char Regex`.
+
+### Edit via `settings.json`
 
 ```json
 {
@@ -70,15 +133,48 @@ Example:
 }
 ```
 
-## Detailed logging
+## Build, lint, and test commands
 
-Each normalize command run writes detailed logs (including each input/output character and decisions) to:
+Run these from `vscode-ext/text-utils`:
 
-- VS Code Output panel channel: `Text Utils Detailed Log`
-- Log file (best-effort):
-  - Preferred: extension global storage `logs/normalize-<timestamp>-<id>.log`
-  - Fallback: `<workspace>/.text-utils-logs/`
-  - Final fallback: temp directory `text-utils-logs`
+```bash
+npm run compile
+npm run watch
+npm run lint
+npm run test
+```
 
-The exact log file path is printed at the beginning of each run in the output channel.
+What they do:
 
+- `compile`: TypeScript build to `out/`
+- `watch`: incremental TypeScript build (used by the debug launch task)
+- `lint`: ESLint checks
+- `test`: VS Code extension test run via `vscode-test`
+
+## Manual verification checklist
+
+Use this when validating changes:
+
+1. Run `npm run compile` and `npm run lint`.
+2. Launch Extension Development Host (`F5`).
+3. In host window, run normalize on sample text containing:
+   - smart quotes
+   - dashes
+   - ellipsis
+   - zero-width chars
+   - one intentionally unsupported character (for warning path)
+4. Confirm transformed output is correct.
+5. Confirm warning modal appears when expected.
+6. Confirm `Text Utils Detailed Log` includes full per-character trace and final status.
+
+## Troubleshooting
+
+- `Command 'Text Utilities: Normalize Characters' not found`:
+  - Make sure you are using the Extension Development Host window opened by `F5`.
+- `F5` does nothing:
+  - Ensure the opened workspace is `text-utils` (where `.vscode/launch.json` exists).
+- `npm run test` fails with VS Code download/version errors:
+  - Retry with network access.
+  - Some environments without external network access can fail in `vscode-test`.
+- No file log created:
+  - Check Output panel; logging falls back to workspace or temp directory and reports the chosen path.
