@@ -1,11 +1,12 @@
-import { error } from "console";
-import { rawListeners } from "process";
-import { decode } from "punycode";
 import * as vscode from "vscode";
+
+const DEFAULT_DISALLOWED_CHAR_REGEX =
+  /[^A-Za-z0-9 ,."'()\[\];:/?><!@#$%^&*+=\-\\ \t\r\n{}|]/;
 
 export type TextUtilsConfig = {
   map: Map<string, string>;
   allowedOutputChars: Set<string>; // derived from replacement VALUES only
+  disallowedRegex: RegExp;
 };
 
 export type RawMapEntry =
@@ -40,11 +41,30 @@ function decodeEscapes(s: string): string {
   );
 }
 
+function parseRegexSetting(raw: string | undefined): RegExp {
+  if (!raw) {
+    return DEFAULT_DISALLOWED_CHAR_REGEX;
+  }
+
+  const literal = raw.match(/^\/([\s\S]*)\/([a-z]*)$/);
+
+  try {
+    if (literal) {
+      return new RegExp(literal[1], literal[2]);
+    }
+    return new RegExp(raw);
+  } catch {
+    return DEFAULT_DISALLOWED_CHAR_REGEX;
+  }
+}
+
 export function buildConfigFromRaw(
   raw: Record<string, RawMapEntry>,
+  disallowedRegexSetting?: string,
 ): TextUtilsConfig {
   const map = new Map<string, string>();
   const allowedOutputChars = new Set<string>();
+  const disallowedRegex = parseRegexSetting(disallowedRegexSetting);
 
   for (const [rawKey, rawEntry] of Object.entries(raw ?? {})) {
     if (!rawKey) {
@@ -68,7 +88,12 @@ export function buildConfigFromRaw(
     }
 
     // Coalesce null/undefined to "" and decode escaped in replacement
-    const replacement = decodeEscapes((replaceWith ?? "") as string);
+    const rawReplacement = replaceWith ?? "";
+    const replacement = decodeEscapes(
+      typeof rawReplacement === "string"
+        ? rawReplacement
+        : String(rawReplacement),
+    );
 
     map.set(decodedKey, replacement);
 
@@ -77,12 +102,13 @@ export function buildConfigFromRaw(
     }
   }
 
-  return { map, allowedOutputChars };
+  return { map, allowedOutputChars, disallowedRegex };
 }
 
 export function getTextUtilsConfig(): TextUtilsConfig {
   const cfg = vscode.workspace.getConfiguration("textUtils");
   const raw = cfg.get<Record<string, RawMapEntry>>("map") ?? {};
+  const disallowedRegexSetting = cfg.get<string>("disallowedCharRegex");
 
-  return buildConfigFromRaw(raw);
+  return buildConfigFromRaw(raw, disallowedRegexSetting);
 }

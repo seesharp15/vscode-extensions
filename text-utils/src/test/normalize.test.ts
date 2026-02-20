@@ -1,7 +1,7 @@
 import * as assert from "assert";
 import { normalizeText } from "../normalize";
 import { buildConfigFromRaw } from "../config";
-import {TextUtilsConfig} from "../config";
+import { TextUtilsConfig } from "../config";
 // type TestConfig = {
 //   map: Map<string, string>;
 //   allowedOutputChars: Set<string>;
@@ -39,7 +39,7 @@ function expectNoIssues(result: {
   );
 }
 
-suite("normalizeText (map-only strict)", () => {
+suite("normalizeText (map + regex checks)", () => {
   test("supports multi-character replacement (ellipsis)", () => {
     const input = "wait…";
     const config = makeConfig([...identity("wait"), ["…", "..."], [".", "."]]);
@@ -121,6 +121,14 @@ suite("normalizeText (map-only strict)", () => {
     assert.strictEqual(result.text, "hello ☃");
     assert.ok(result.unmappedInputSamples.includes("☃"));
     assert.ok(result.illegalOutputSamples.includes("☃"));
+  });
+
+  test("does not flag regular ASCII characters when no explicit mapping exists", () => {
+    const input = "hello 123";
+    const config = makeConfig([]);
+    const result = normalizeText(input, config);
+    assert.strictEqual(result.text, "hello 123");
+    expectNoIssues(result);
   });
 
   test("dedupes unmapped/illegal samples", () => {
@@ -214,21 +222,13 @@ suite("normalizeText (map-only strict)", () => {
     expectNoIssues(result);
   });
 
-  test("multi-character replacement allows output chars but still flags unmapped input", () => {
+  test("multi-character replacement allows output chars without flagging allowed unmapped input", () => {
     const input = "abcdefg";
     const config = makeConfig([["a", "bcdefg"]]);
     const result = normalizeText(input, config);
 
     assert.strictEqual(result.text, "bcdefgbcdefg");
-
-    assert.deepStrictEqual(result.unmappedInputSamples.sort(), [
-      "b",
-      "c",
-      "d",
-      "e",
-      "f",
-      "g",
-    ]);
+    assert.deepStrictEqual(result.unmappedInputSamples, []);
     assert.deepStrictEqual(result.illegalOutputSamples, []);
   });
 });
@@ -273,5 +273,13 @@ suite("buildConfigFromRaw (config normalization)", () => {
     const result = normalizeText(input, config);
     assert.strictEqual(result.text, "a”a");
     expectNoIssues(result);
+  });
+
+  test("uses configured disallowed regex for unmapped/illegal detection", () => {
+    const config = buildConfigFromRaw({}, "/[A-Za-z]/");
+    const input = "a1";
+    const result = normalizeText(input, config);
+    assert.deepStrictEqual(result.unmappedInputSamples, ["a"]);
+    assert.deepStrictEqual(result.illegalOutputSamples, ["a"]);
   });
 });

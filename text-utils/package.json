@@ -95,7 +95,22 @@
 
           "{": { "replaceWith": "{", "description": "Explicitly allow left brace" },
           "}": { "replaceWith": "}", "description": "Explicitly allow right brace" },
-          "|": { "replaceWith": "|", "description": "Explicitly allow pipe" }
+          "|": { "replaceWith": "|", "description": "Explicitly allow pipe" },
+
+          "\\u2002": { "replaceWith": " ", "description": "EN SPACE" },
+          "\\u2003": { "replaceWith": " ", "description": "EM SPACE" },
+          "\\u2004": { "replaceWith": " ", "description": "THREE-PER-EM SPACE" },
+          "\\u2005": { "replaceWith": " ", "description": "FOUR-PER-EM SPACE" },
+          "\\u2006": { "replaceWith": " ", "description": "SIX-PER-EM SPACE" },
+          "\\u2007": { "replaceWith": " ", "description": "FIGURE SPACE" },
+          "\\u2008": { "replaceWith": " ", "description": "PUNCTUATION SPACE" },
+          "\\u2009": { "replaceWith": " ", "description": "THIN SPACE" },
+          "\\u200A": { "replaceWith": " ", "description": "HAIR SPACE" },
+          "\\u202F": { "replaceWith": " ", "description": "NARROW NO-BREAK SPACE" },
+          "\\u205F": { "replaceWith": " ", "description": "MEDIUM MATHEMATICAL SPACE" },
+          "\\u3000": { "replaceWith": " ", "description": "IDEOGRAPHIC SPACE" },
+          "\\u2028": { "replaceWith": "\n", "description": "LINE SEPARATOR"}
+
         },
         "description": "Character normalization map. Keys can be literal characters or unicode escapes like \"\\\\u201D\"."
       },
