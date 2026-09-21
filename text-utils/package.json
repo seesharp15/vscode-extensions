@@ -4,7 +4,7 @@
   "description": "Text Manipulation Utility",
   "version": "0.0.1",
   "engines": {
-    "vscode": "^1.108.1"
+    "vscode": "^1.138.0"
   },
   "categories": [
     "Other"
@@ -20,100 +20,272 @@
     "configuration": {
       "title": "Text Utilities",
       "properties": {
-       "textUtils.map": {
-        "type": "object",
-        "additionalProperties": {
+        "textUtils.map": {
           "type": "object",
-          "required": ["replaceWith"],
-          "properties": {
-            "replaceWith": {
-              "type": "string",
-              "description": "Replacement text. Use empty string to remove the character. Use the same character to explicitly allow it."
-            },
-            "description": {
-              "type": "string",
-              "description": "Optional description explaining what this character is and why it is normalized."
+          "additionalProperties": {
+            "type": "object",
+            "required": [
+              "replaceWith"
+            ],
+            "properties": {
+              "replaceWith": {
+                "type": "string",
+                "description": "Replacement text. Use empty string to remove the character. Use the same character to explicitly allow it."
+              },
+              "description": {
+                "type": "string",
+                "description": "Optional description explaining what this character is and why it is normalized."
+              }
             }
-          }
+          },
+          "default": {
+            "\\u2014": {
+              "replaceWith": "-",
+              "description": "EM DASH —"
+            },
+            "\\u2013": {
+              "replaceWith": "-",
+              "description": "EN DASH –"
+            },
+            "\\u2212": {
+              "replaceWith": "-",
+              "description": "MINUS SIGN −"
+            },
+            "\\u2010": {
+              "replaceWith": "-",
+              "description": "HYPHEN ‐"
+            },
+            "\\u2011": {
+              "replaceWith": "-",
+              "description": "NON-BREAKING HYPHEN"
+            },
+            "\\u2012": {
+              "replaceWith": "-",
+              "description": "FIGURE DASH"
+            },
+            "\\u2015": {
+              "replaceWith": "-",
+              "description": "HORIZONTAL BAR"
+            },
+            "\\u2043": {
+              "replaceWith": "-",
+              "description": "HYPHEN BULLET"
+            },
+            "\\u201C": {
+              "replaceWith": "\"",
+              "description": "LEFT DOUBLE QUOTATION MARK (“)"
+            },
+            "\\u201D": {
+              "replaceWith": "\"",
+              "description": "RIGHT DOUBLE QUOTATION MARK (”)"
+            },
+            "\\u201E": {
+              "replaceWith": "\"",
+              "description": "DOUBLE LOW-9 QUOTATION MARK („)"
+            },
+            "\\u201F": {
+              "replaceWith": "\"",
+              "description": "DOUBLE HIGH-REVERSED-9 QUOTATION MARK (‟)"
+            },
+            "\\u2018": {
+              "replaceWith": "'",
+              "description": "LEFT SINGLE QUOTATION MARK (‘)"
+            },
+            "\\u2019": {
+              "replaceWith": "'",
+              "description": "RIGHT SINGLE QUOTATION MARK (’)"
+            },
+            "\\u201A": {
+              "replaceWith": "'",
+              "description": "SINGLE LOW-9 QUOTATION MARK (‚)"
+            },
+            "\\u201B": {
+              "replaceWith": "'",
+              "description": "SINGLE HIGH-REVERSED-9 QUOTATION MARK (‛)"
+            },
+            "\\u2032": {
+              "replaceWith": "'",
+              "description": "PRIME (′)"
+            },
+            "\\u2035": {
+              "replaceWith": "'",
+              "description": "REVERSED PRIME (‵)"
+            },
+            "\\u2026": {
+              "replaceWith": "...",
+              "description": "HORIZONTAL ELLIPSIS (…)"
+            },
+            "\\u2022": {
+              "replaceWith": "*",
+              "description": "BULLET (•)"
+            },
+            "\\u00B7": {
+              "replaceWith": ".",
+              "description": "MIDDLE DOT (·)"
+            },
+            "\\u00A0": {
+              "replaceWith": " ",
+              "description": "NO-BREAK SPACE (NBSP)"
+            },
+            "\\u00AD": {
+              "replaceWith": "",
+              "description": "SOFT HYPHEN (removed)"
+            },
+            "\\u200B": {
+              "replaceWith": "",
+              "description": "ZERO WIDTH SPACE"
+            },
+            "\\u200C": {
+              "replaceWith": "",
+              "description": "ZERO WIDTH NON-JOINER"
+            },
+            "\\u200D": {
+              "replaceWith": "",
+              "description": "ZERO WIDTH JOINER"
+            },
+            "\\u2060": {
+              "replaceWith": "",
+              "description": "WORD JOINER"
+            },
+            "\\u200E": {
+              "replaceWith": "",
+              "description": "LEFT-TO-RIGHT MARK"
+            },
+            "\\u200F": {
+              "replaceWith": "",
+              "description": "RIGHT-TO-LEFT MARK"
+            },
+            "\\u202A": {
+              "replaceWith": "",
+              "description": "LEFT-TO-RIGHT EMBEDDING"
+            },
+            "\\u202B": {
+              "replaceWith": "",
+              "description": "RIGHT-TO-LEFT EMBEDDING"
+            },
+            "\\u202C": {
+              "replaceWith": "",
+              "description": "POP DIRECTIONAL FORMATTING"
+            },
+            "\\u202D": {
+              "replaceWith": "",
+              "description": "LEFT-TO-RIGHT OVERRIDE"
+            },
+            "\\u202E": {
+              "replaceWith": "",
+              "description": "RIGHT-TO-LEFT OVERRIDE"
+            },
+            "\\u2066": {
+              "replaceWith": "",
+              "description": "LEFT-TO-RIGHT ISOLATE"
+            },
+            "\\u2067": {
+              "replaceWith": "",
+              "description": "RIGHT-TO-LEFT ISOLATE"
+            },
+            "\\u2068": {
+              "replaceWith": "",
+              "description": "FIRST STRONG ISOLATE"
+            },
+            "\\u2069": {
+              "replaceWith": "",
+              "description": "POP DIRECTIONAL ISOLATE"
+            },
+            "\\uFEFF": {
+              "replaceWith": "",
+              "description": "BYTE ORDER MARK (BOM)"
+            },
+            "\\u2044": {
+              "replaceWith": "/",
+              "description": "FRACTION SLASH"
+            },
+            "\\u2192": {
+              "replaceWith": "->",
+              "description": "RIGHTWARDS ARROW (→)"
+            },
+            "\\u2502": {
+              "replaceWith": "|",
+              "description": "BOX DRAWINGS LIGHT VERTICAL (│)"
+            },
+            "\\u2503": {
+              "replaceWith": "|",
+              "description": "BOX DRAWINGS HEAVY VERTICAL (┃)"
+            },
+            "\\u2223": {
+              "replaceWith": "|",
+              "description": "DIVIDES (∣)"
+            },
+            "\\uFF5C": {
+              "replaceWith": "|",
+              "description": "FULLWIDTH VERTICAL LINE (｜)"
+            },
+            "{": {
+              "replaceWith": "{",
+              "description": "Explicitly allow left brace"
+            },
+            "}": {
+              "replaceWith": "}",
+              "description": "Explicitly allow right brace"
+            },
+            "|": {
+              "replaceWith": "|",
+              "description": "Explicitly allow pipe"
+            },
+            "\\u2002": {
+              "replaceWith": " ",
+              "description": "EN SPACE"
+            },
+            "\\u2003": {
+              "replaceWith": " ",
+              "description": "EM SPACE"
+            },
+            "\\u2004": {
+              "replaceWith": " ",
+              "description": "THREE-PER-EM SPACE"
+            },
+            "\\u2005": {
+              "replaceWith": " ",
+              "description": "FOUR-PER-EM SPACE"
+            },
+            "\\u2006": {
+              "replaceWith": " ",
+              "description": "SIX-PER-EM SPACE"
+            },
+            "\\u2007": {
+              "replaceWith": " ",
+              "description": "FIGURE SPACE"
+            },
+            "\\u2008": {
+              "replaceWith": " ",
+              "description": "PUNCTUATION SPACE"
+            },
+            "\\u2009": {
+              "replaceWith": " ",
+              "description": "THIN SPACE"
+            },
+            "\\u200A": {
+              "replaceWith": " ",
+              "description": "HAIR SPACE"
+            },
+            "\\u202F": {
+              "replaceWith": " ",
+              "description": "NARROW NO-BREAK SPACE"
+            },
+            "\\u205F": {
+              "replaceWith": " ",
+              "description": "MEDIUM MATHEMATICAL SPACE"
+            },
+            "\\u3000": {
+              "replaceWith": " ",
+              "description": "IDEOGRAPHIC SPACE"
+            },
+            "\\u2028": {
+              "replaceWith": "\n",
+              "description": "LINE SEPARATOR"
+            }
+          },
+          "description": "Character normalization map. Keys can be literal characters or unicode escapes like \"\\\\u201D\"."
         },
-        "default": {
-          "\\u2014": { "replaceWith": "-", "description": "EM DASH —" },
-          "\\u2013": { "replaceWith": "-", "description": "EN DASH –" },
-          "\\u2212": { "replaceWith": "-", "description": "MINUS SIGN −" },
-          "\\u2010": { "replaceWith": "-", "description": "HYPHEN ‐" },
-          "\\u2011": { "replaceWith": "-", "description": "NON-BREAKING HYPHEN" },
-          "\\u2012": { "replaceWith": "-", "description": "FIGURE DASH" },
-          "\\u2015": { "replaceWith": "-", "description": "HORIZONTAL BAR" },
-          "\\u2043": { "replaceWith": "-", "description": "HYPHEN BULLET" },
-
-          "\\u201C": { "replaceWith": "\"", "description": "LEFT DOUBLE QUOTATION MARK (“)" },
-          "\\u201D": { "replaceWith": "\"", "description": "RIGHT DOUBLE QUOTATION MARK (”)" },
-          "\\u201E": { "replaceWith": "\"", "description": "DOUBLE LOW-9 QUOTATION MARK („)" },
-          "\\u201F": { "replaceWith": "\"", "description": "DOUBLE HIGH-REVERSED-9 QUOTATION MARK (‟)" },
-
-          "\\u2018": { "replaceWith": "'", "description": "LEFT SINGLE QUOTATION MARK (‘)" },
-          "\\u2019": { "replaceWith": "'", "description": "RIGHT SINGLE QUOTATION MARK (’)" },
-          "\\u201A": { "replaceWith": "'", "description": "SINGLE LOW-9 QUOTATION MARK (‚)" },
-          "\\u201B": { "replaceWith": "'", "description": "SINGLE HIGH-REVERSED-9 QUOTATION MARK (‛)" },
-          "\\u2032": { "replaceWith": "'", "description": "PRIME (′)" },
-          "\\u2035": { "replaceWith": "'", "description": "REVERSED PRIME (‵)" },
-
-          "\\u2026": { "replaceWith": "...", "description": "HORIZONTAL ELLIPSIS (…)"},
-          "\\u2022": { "replaceWith": "*", "description": "BULLET (•)" },
-          "\\u00B7": { "replaceWith": ".", "description": "MIDDLE DOT (·)" },
-
-          "\\u00A0": { "replaceWith": " ", "description": "NO-BREAK SPACE (NBSP)" },
-          "\\u00AD": { "replaceWith": "", "description": "SOFT HYPHEN (removed)" },
-
-          "\\u200B": { "replaceWith": "", "description": "ZERO WIDTH SPACE" },
-          "\\u200C": { "replaceWith": "", "description": "ZERO WIDTH NON-JOINER" },
-          "\\u200D": { "replaceWith": "", "description": "ZERO WIDTH JOINER" },
-          "\\u2060": { "replaceWith": "", "description": "WORD JOINER" },
-
-          "\\u200E": { "replaceWith": "", "description": "LEFT-TO-RIGHT MARK" },
-          "\\u200F": { "replaceWith": "", "description": "RIGHT-TO-LEFT MARK" },
-
-          "\\u202A": { "replaceWith": "", "description": "LEFT-TO-RIGHT EMBEDDING" },
-          "\\u202B": { "replaceWith": "", "description": "RIGHT-TO-LEFT EMBEDDING" },
-          "\\u202C": { "replaceWith": "", "description": "POP DIRECTIONAL FORMATTING" },
-          "\\u202D": { "replaceWith": "", "description": "LEFT-TO-RIGHT OVERRIDE" },
-          "\\u202E": { "replaceWith": "", "description": "RIGHT-TO-LEFT OVERRIDE" },
-
-          "\\u2066": { "replaceWith": "", "description": "LEFT-TO-RIGHT ISOLATE" },
-          "\\u2067": { "replaceWith": "", "description": "RIGHT-TO-LEFT ISOLATE" },
-          "\\u2068": { "replaceWith": "", "description": "FIRST STRONG ISOLATE" },
-          "\\u2069": { "replaceWith": "", "description": "POP DIRECTIONAL ISOLATE" },
-
-          "\\uFEFF": { "replaceWith": "", "description": "BYTE ORDER MARK (BOM)" },
-          "\\u2044": { "replaceWith": "/", "description": "FRACTION SLASH" },
-          "\\u2192": { "replaceWith": "->", "description": "RIGHTWARDS ARROW (→)" },
-
-          "\\u2502": { "replaceWith": "|", "description": "BOX DRAWINGS LIGHT VERTICAL (│)" },
-          "\\u2503": { "replaceWith": "|", "description": "BOX DRAWINGS HEAVY VERTICAL (┃)" },
-          "\\u2223": { "replaceWith": "|", "description": "DIVIDES (∣)" },
-          "\\uFF5C": { "replaceWith": "|", "description": "FULLWIDTH VERTICAL LINE (｜)" },
-
-          "{": { "replaceWith": "{", "description": "Explicitly allow left brace" },
-          "}": { "replaceWith": "}", "description": "Explicitly allow right brace" },
-          "|": { "replaceWith": "|", "description": "Explicitly allow pipe" },
-
-          "\\u2002": { "replaceWith": " ", "description": "EN SPACE" },
-          "\\u2003": { "replaceWith": " ", "description": "EM SPACE" },
-          "\\u2004": { "replaceWith": " ", "description": "THREE-PER-EM SPACE" },
-          "\\u2005": { "replaceWith": " ", "description": "FOUR-PER-EM SPACE" },
-          "\\u2006": { "replaceWith": " ", "description": "SIX-PER-EM SPACE" },
-          "\\u2007": { "replaceWith": " ", "description": "FIGURE SPACE" },
-          "\\u2008": { "replaceWith": " ", "description": "PUNCTUATION SPACE" },
-          "\\u2009": { "replaceWith": " ", "description": "THIN SPACE" },
-          "\\u200A": { "replaceWith": " ", "description": "HAIR SPACE" },
-          "\\u202F": { "replaceWith": " ", "description": "NARROW NO-BREAK SPACE" },
-          "\\u205F": { "replaceWith": " ", "description": "MEDIUM MATHEMATICAL SPACE" },
-          "\\u3000": { "replaceWith": " ", "description": "IDEOGRAPHIC SPACE" },
-          "\\u2028": { "replaceWith": "\n", "description": "LINE SEPARATOR"}
-
-        },
-        "description": "Character normalization map. Keys can be literal characters or unicode escapes like \"\\\\u201D\"."
-      },
         "textUtils.disallowedCharRegex": {
           "type": "string",
           "default": "/[^A-Za-z0-9 ,.\"'()\\[\\];:/?><!@#$%^&*+=\\-\\\\ \\t\\r\\n{}|]/g",
@@ -130,13 +302,24 @@
           "properties": {
             "level": {
               "type": "string",
-              "enum": ["TRACE", "DEBUG", "INFO", "WARN", "ERROR", "OFF"],
+              "enum": [
+                "TRACE",
+                "DEBUG",
+                "INFO",
+                "WARN",
+                "ERROR",
+                "OFF"
+              ],
               "default": "DEBUG",
               "description": "Log threshold. Works like log4j: DEBUG includes INFO/WARN/ERROR; WARN includes WARN/ERROR."
             },
             "destination": {
               "type": "string",
-              "enum": ["both", "outputChannel", "file"],
+              "enum": [
+                "both",
+                "outputChannel",
+                "file"
+              ],
               "default": "both",
               "description": "Where logs are written."
             },
@@ -165,13 +348,13 @@
     "test": "vscode-test"
   },
   "devDependencies": {
-    "@types/vscode": "^1.108.1",
     "@types/mocha": "^10.0.10",
     "@types/node": "22.x",
-    "typescript-eslint": "^8.52.0",
-    "eslint": "^9.39.2",
+    "@types/vscode": "^1.138.0",
+    "@vscode/test-cli": "^0.0.15",
+    "@vscode/test-electron": "^3.1.0",
+    "eslint": "^10.11.0",
     "typescript": "^5.9.3",
-    "@vscode/test-cli": "^0.0.12",
-    "@vscode/test-electron": "^2.5.2"
+    "typescript-eslint": "^8.70.1"
   }
 }
