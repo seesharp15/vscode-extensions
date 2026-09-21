@@ -25,7 +25,7 @@ The command exposed by the extension is:
 Install these first:
 
 - Node.js 22+ (includes `npm`)
-- VS Code
+- VS Code 1.138 or newer
 - Git
 
 Check versions:
