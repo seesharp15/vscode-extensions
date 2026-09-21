@@ -192,7 +192,8 @@ function hasIssues(pass: NormalizationPass): boolean {
 async function showIssuesDialog(
   pass: NormalizationPass,
 ): Promise<string | undefined> {
-  const uniqueUnmapped = sortedChars(pass.unmappedCounts.keys()).slice(0, 20);
+  // First-encounter order, matching the samples users have seen in earlier versions.
+  const uniqueUnmapped = Array.from(pass.unmappedCounts.keys()).slice(0, 20);
   const detail =
     formatSamples("Unmapped input characters (kept as-is)", uniqueUnmapped) +
     formatSamples(
@@ -209,7 +210,7 @@ async function showIssuesDialog(
     : [IGNORE_AND_APPLY];
 
   return vscode.window.showErrorMessage(
-    `Text normalization found characters not covered by your configured map. ${guidance}${detail}`,
+    `Text normalization found characters not covered by your configured map. ${guidance}${detail}\n\nApply known fixes anyway?`,
     { modal: true },
     ...buttons,
   );
