@@ -16,7 +16,8 @@ The command exposed by the extension is:
 
 - Replaces configured characters (smart quotes, em dashes, zero-width characters, etc.).
 - Leaves allowed characters unchanged.
-- Warns if disallowed characters remain unmapped.
+- Warns if disallowed characters remain unmapped, and lets you type a replacement for each one on the spot.
+- Optionally saves those replacements to `textUtils.map` so future runs handle them automatically.
 - Writes highly detailed logs for each run (per character input/output decisions).
 
 ## Prerequisites
@@ -110,6 +111,20 @@ Path behavior:
 
 - absolute path: used as-is
 - relative path: resolved from workspace folder (if present), otherwise extension storage/temp fallback
+
+## Handling unknown characters
+
+When a run finds characters that are disallowed but not in `textUtils.map`, a dialog lists them and offers:
+
+- `Provide Replacements…`: a picker lists every unknown character with its code point and count. Deselect any you want to leave alone, then you get one input box per character.
+  - Type the replacement text. Escapes like `\n`, `\t`, and `\u2014` work the same as in settings.
+  - Leave it empty to delete the character.
+  - Type the character itself to allow it as-is.
+  - Press `Escape` to keep it unchanged for this run.
+- `Ignore and Apply Known Fixes`: apply the configured map and leave unknown characters untouched.
+- Cancel: apply nothing. A report is still written.
+
+After you provide replacements you are asked whether to save them to workspace settings, user settings, or use them for this run only. Saved entries are written under `textUtils.map` with a `description` noting the date they were added. The text is then re-checked with the extended map; if anything is still unknown, the dialog appears again.
 
 ## Configure replacements and allowed/disallowed logic
 

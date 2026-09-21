@@ -2,16 +2,34 @@ import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
 import * as vscode from "vscode";
-import { TextUtilsConfig, getTextUtilsConfig } from "./config";
+import {
+  TextUtilsConfig,
+  decodeEscapes,
+  extendConfig,
+  getTextUtilsConfig,
+  saveMapEntries,
+} from "./config";
 import { buildHtmlReport, RangeDiffData } from "./diffReport";
 import { createDetailedLogger, DetailedLogger } from "./logging";
 import { NormalizeResult, NormalizeTraceEvent, normalizeText } from "./normalize";
+
+const IGNORE_AND_APPLY = "Ignore and Apply Known Fixes";
+const PROVIDE_REPLACEMENTS = "Provide Replacements…";
 
 type RangeNormalization = {
   range: vscode.Range;
   original: string;
   result: NormalizeResult;
 };
+
+type NormalizationPass = {
+  normalizedRanges: RangeNormalization[];
+  /** Every distinct unmapped input character -> occurrences across all ranges. */
+  unmappedCounts: Map<string, number>;
+  illegalOutputSamples: string[];
+};
+
+type UnknownCharItem = vscode.QuickPickItem & { char: string };
 
 function escapeForLog(value: string): string {
   return value
@@ -104,6 +122,200 @@ function formatSamples(label: string, samples: string[]): string {
   return `\n\n${label}:\n${samples.join(" ")}`;
 }
 
+/** Normalizes every target range with `config`; pure apart from logging. */
+function normalizeRanges(
+  editor: vscode.TextEditor,
+  ranges: vscode.Range[],
+  config: TextUtilsConfig,
+  logger: DetailedLogger,
+  pass: number,
+): NormalizationPass {
+  const normalizedRanges: RangeNormalization[] = [];
+  const unmappedCounts = new Map<string, number>();
+  const illegalOutput = new Set<string>();
+  const passPrefix = pass === 1 ? "" : `PASS[${pass}] `;
+
+  for (const [rangeIndex, range] of ranges.entries()) {
+    const rangeLabel = `${passPrefix}RANGE[${rangeIndex}](${describeRange(range)})`;
+    const original = editor.document.getText(range);
+    logger.debug(
+      `${rangeLabel} originalLength=${original.length} originalText=${describeText(original)}`,
+    );
+
+    if (!original) {
+      logger.debug(`${rangeLabel} skipped because selection text is empty.`);
+      continue;
+    }
+
+    const result = normalizeText(original, config, {
+      onTrace: (event) => logTraceEvent(logger.debug, rangeLabel, event),
+    });
+
+    logger.debug(
+      `${rangeLabel} resultText=${describeText(result.text)} unmappedSamples=${result.unmappedInputSamples.length} illegalOutputSamples=${result.illegalOutputSamples.length}`,
+    );
+    if (result.unmappedInputSamples.length > 0) {
+      logger.warn(
+        `${rangeLabel} unmappedSampleChars=${result.unmappedInputSamples.map((ch) => describeChar(ch)).join(", ")}`,
+      );
+    }
+    if (result.illegalOutputSamples.length > 0) {
+      logger.warn(
+        `${rangeLabel} illegalOutputSampleChars=${result.illegalOutputSamples.map((ch) => describeChar(ch)).join(", ")}`,
+      );
+    }
+
+    for (const m of result.charMappings) {
+      if (m.unmapped) {
+        unmappedCounts.set(m.original, (unmappedCounts.get(m.original) ?? 0) + 1);
+      }
+    }
+    for (const ch of result.illegalOutputSamples) {
+      illegalOutput.add(ch);
+    }
+
+    normalizedRanges.push({ range, original, result });
+  }
+
+  return {
+    normalizedRanges,
+    unmappedCounts,
+    illegalOutputSamples: Array.from(illegalOutput).slice(0, 20),
+  };
+}
+
+function hasIssues(pass: NormalizationPass): boolean {
+  return pass.unmappedCounts.size > 0 || pass.illegalOutputSamples.length > 0;
+}
+
+/** Modal warning about unknown characters. Resolves to the chosen button, or undefined if dismissed. */
+async function showIssuesDialog(
+  pass: NormalizationPass,
+): Promise<string | undefined> {
+  const uniqueUnmapped = sortedChars(pass.unmappedCounts.keys()).slice(0, 20);
+  const detail =
+    formatSamples("Unmapped input characters (kept as-is)", uniqueUnmapped) +
+    formatSamples(
+      "Output contains characters not present in any replacement value",
+      pass.illegalOutputSamples,
+    );
+
+  const canProvide = pass.unmappedCounts.size > 0;
+  const guidance = canProvide
+    ? "You can provide a replacement for each of them now, or apply only the known fixes and leave them unchanged."
+    : "Known fixes can still be applied, but some characters may remain unchanged.";
+  const buttons = canProvide
+    ? [PROVIDE_REPLACEMENTS, IGNORE_AND_APPLY]
+    : [IGNORE_AND_APPLY];
+
+  return vscode.window.showErrorMessage(
+    `Text normalization found characters not covered by your configured map. ${guidance}${detail}`,
+    { modal: true },
+    ...buttons,
+  );
+}
+
+/**
+ * Lets the user pick which unknown characters to replace, then asks for a
+ * replacement for each. Escape on an individual prompt keeps that character
+ * unchanged; escape on the picker abandons the whole step.
+ */
+async function promptForReplacements(
+  unmappedCounts: Map<string, number>,
+  logger: DetailedLogger,
+): Promise<Map<string, string>> {
+  const provided = new Map<string, string>();
+
+  const items: UnknownCharItem[] = sortedChars(unmappedCounts.keys()).map((ch) => {
+    const count = unmappedCounts.get(ch) ?? 0;
+    return {
+      char: ch,
+      label: `'${escapeForLog(ch)}'`,
+      description: formatCodePoint(ch.codePointAt(0) ?? 0),
+      detail: `${count} occurrence${count === 1 ? "" : "s"}`,
+      picked: true,
+    };
+  });
+
+  const selected = await vscode.window.showQuickPick(items, {
+    canPickMany: true,
+    ignoreFocusOut: true,
+    title: "Unknown characters: choose which to replace",
+    placeHolder: "Deselect any you want to leave unchanged, then press Enter",
+  });
+
+  if (!selected) {
+    logger.warn("Replacement prompt cancelled at character selection.");
+    return provided;
+  }
+
+  for (const [i, item] of selected.entries()) {
+    const label = describeChar(item.char);
+    const value = await vscode.window.showInputBox({
+      ignoreFocusOut: true,
+      title: `Replacement for ${label} (${i + 1} of ${selected.length})`,
+      prompt:
+        "Replacement text (\\n, \\t and \\uXXXX escapes are supported). Empty = delete. Same character = allow as-is. Escape = keep unchanged for this run.",
+      placeHolder: "replacement text",
+    });
+
+    if (value === undefined) {
+      logger.warn(`No replacement provided for ${label}; it will be kept as-is.`);
+      continue;
+    }
+
+    const replacement = decodeEscapes(value);
+    provided.set(item.char, replacement);
+    logger.info(`User replacement: ${label} => ${describeText(replacement)}`);
+  }
+
+  return provided;
+}
+
+/** Offers to persist newly provided replacements to settings so future runs pick them up. */
+async function offerToSaveReplacements(
+  provided: Map<string, string>,
+  logger: DetailedLogger,
+): Promise<void> {
+  const SAVE_WORKSPACE = "Save to Workspace Settings";
+  const SAVE_USER = "Save to User Settings";
+  const RUN_ONLY = "Use for This Run Only";
+
+  const hasWorkspace = (vscode.workspace.workspaceFolders?.length ?? 0) > 0;
+  const options = hasWorkspace
+    ? [SAVE_WORKSPACE, SAVE_USER, RUN_ONLY]
+    : [SAVE_USER, RUN_ONLY];
+
+  const count = provided.size;
+  const choice = await vscode.window.showQuickPick(options, {
+    ignoreFocusOut: true,
+    title: `Remember ${count} new replacement${count === 1 ? "" : "s"} in textUtils.map?`,
+    placeHolder: "Saved replacements are applied automatically in future runs",
+  });
+
+  if (!choice || choice === RUN_ONLY) {
+    logger.info("Replacements kept for this run only.");
+    return;
+  }
+
+  const target =
+    choice === SAVE_WORKSPACE
+      ? vscode.ConfigurationTarget.Workspace
+      : vscode.ConfigurationTarget.Global;
+  const scopeName = choice === SAVE_WORKSPACE ? "workspace" : "user";
+
+  try {
+    await saveMapEntries(provided, target);
+    logger.info(`Saved ${count} replacement(s) to ${scopeName} settings.`);
+  } catch (err) {
+    const reason = err instanceof Error ? err.message : String(err);
+    logger.error(`Failed to save replacements to ${scopeName} settings: ${reason}`);
+    vscode.window.showErrorMessage(
+      `Text Utils: could not save replacements to ${scopeName} settings. ${reason}`,
+    );
+  }
+}
+
 async function writeAndOpenReport(
   normalizedRanges: RangeNormalization[],
   logger: DetailedLogger,
@@ -172,82 +384,49 @@ export async function runNormalizeCommand(
     logger.info(`Target range count: ${ranges.length}`);
     logConfig(logger.debug, config);
 
-    // Pre-check all ranges first (atomic decision)
-    let hasAnyIssues = false;
-    const allUnmapped: string[] = [];
-    const allIllegalOutput: string[] = [];
-    const normalizedRanges: RangeNormalization[] = [];
+    // Pre-check all ranges first (atomic decision). If unknown characters turn
+    // up, the user may supply replacements; each round extends the map and
+    // re-runs until the result is clean, the user ignores, or the user cancels.
+    let activeConfig = config;
+    let pass = 1;
+    let current = normalizeRanges(editor, ranges, activeConfig, logger, pass);
 
-    for (const [rangeIndex, range] of ranges.entries()) {
-      const rangeLabel = `RANGE[${rangeIndex}](${describeRange(range)})`;
-      const original = editor.document.getText(range);
-      logger.debug(
-        `${rangeLabel} originalLength=${original.length} originalText=${describeText(original)}`,
-      );
+    while (hasIssues(current)) {
+      const choice = await showIssuesDialog(current);
+      logger.warn(`User decision on warning dialog: ${choice ?? "dismissed"}`);
 
-      if (!original) {
-        logger.debug(`${rangeLabel} skipped because selection text is empty.`);
+      if (choice === undefined) {
+        logger.warn("Command ended without applying edits.");
+        await writeAndOpenReport(
+          current.normalizedRanges,
+          logger,
+          editor.document.uri.toString(),
+          false,
+        );
+        return; // dismissed
+      }
+
+      if (choice === IGNORE_AND_APPLY) {
+        break;
+      }
+
+      const provided = await promptForReplacements(current.unmappedCounts, logger);
+      if (provided.size === 0) {
+        logger.info("No replacements provided; showing the warning again.");
         continue;
       }
 
-      const result = normalizeText(original, config, {
-        onTrace: (event) => logTraceEvent(logger.debug, rangeLabel, event),
-      });
+      activeConfig = extendConfig(activeConfig, provided);
+      await offerToSaveReplacements(provided, logger);
 
-      logger.debug(
-        `${rangeLabel} resultText=${describeText(result.text)} unmappedSamples=${result.unmappedInputSamples.length} illegalOutputSamples=${result.illegalOutputSamples.length}`,
+      pass += 1;
+      logger.info(
+        `Re-running normalization (pass ${pass}) with ${provided.size} additional map entr${provided.size === 1 ? "y" : "ies"}.`,
       );
-      if (result.unmappedInputSamples.length > 0) {
-        logger.warn(
-          `${rangeLabel} unmappedSampleChars=${result.unmappedInputSamples.map((ch) => describeChar(ch)).join(", ")}`,
-        );
-      }
-      if (result.illegalOutputSamples.length > 0) {
-        logger.warn(
-          `${rangeLabel} illegalOutputSampleChars=${result.illegalOutputSamples.map((ch) => describeChar(ch)).join(", ")}`,
-        );
-      }
-
-      if (
-        result.unmappedInputSamples.length > 0 ||
-        result.illegalOutputSamples.length > 0
-      ) {
-        hasAnyIssues = true;
-        allUnmapped.push(...result.unmappedInputSamples);
-        allIllegalOutput.push(...result.illegalOutputSamples);
-      }
-
-      normalizedRanges.push({ range, original, result });
+      current = normalizeRanges(editor, ranges, activeConfig, logger, pass);
     }
 
-    if (hasAnyIssues) {
-      const uniqueUnmapped = Array.from(new Set(allUnmapped)).slice(0, 20);
-      const uniqueIllegalOutput = Array.from(new Set(allIllegalOutput)).slice(
-        0,
-        20,
-      );
-
-      const detail =
-        formatSamples("Unmapped input characters (kept as-is)", uniqueUnmapped) +
-        formatSamples(
-          "Output contains characters not present in any replacement value",
-          uniqueIllegalOutput,
-        );
-
-      const choice = await vscode.window.showErrorMessage(
-        `Text normalization found characters not covered by your configured map. Known fixes can still be applied, but some characters may remain unchanged.${detail}\n\nApply known fixes anyway?`,
-        { modal: true },
-        "Ignore and Apply Known Fixes",
-      );
-
-      logger.warn(`User decision on warning dialog: ${choice ?? "dismissed"}`);
-
-      if (choice !== "Ignore and Apply Known Fixes") {
-        logger.warn("Command ended without applying edits.");
-        await writeAndOpenReport(normalizedRanges, logger, editor.document.uri.toString(), false);
-        return; // dismissed
-      }
-    }
+    const normalizedRanges = current.normalizedRanges;
 
     // Apply mappings (even if issues exist and user chose Ignore)
     const didEdit = await editor.edit((editBuilder) => {
