@@ -1,6 +1,10 @@
+import * as fs from "fs";
+import * as os from "os";
+import * as path from "path";
 import * as vscode from "vscode";
 import { TextUtilsConfig, getTextUtilsConfig } from "./config";
-import { createDetailedLogger } from "./logging";
+import { buildHtmlReport, RangeDiffData } from "./diffReport";
+import { createDetailedLogger, DetailedLogger } from "./logging";
 import { NormalizeResult, NormalizeTraceEvent, normalizeText } from "./normalize";
 
 type RangeNormalization = {
@@ -100,6 +104,52 @@ function formatSamples(label: string, samples: string[]): string {
   return `\n\n${label}:\n${samples.join(" ")}`;
 }
 
+async function writeAndOpenReport(
+  normalizedRanges: RangeNormalization[],
+  logger: DetailedLogger,
+  documentUri: string,
+  editsApplied: boolean,
+): Promise<void> {
+  try {
+    const reportDir = path.join(os.tmpdir(), "text-utils-reports");
+    await fs.promises.mkdir(reportDir, { recursive: true });
+    const reportPath = path.join(reportDir, `${logger.runId}.html`);
+
+    const ranges: RangeDiffData[] = normalizedRanges.map((item, i) => ({
+      rangeLabel: `RANGE[${i}](${describeRange(item.range)})`,
+      charMappings: item.result.charMappings,
+      original: item.original,
+      normalized: item.result.text,
+    }));
+
+    const html = buildHtmlReport({
+      ranges,
+      documentUri,
+      runId: logger.runId,
+      timestamp: new Date().toISOString(),
+      editsApplied,
+    });
+
+    await fs.promises.writeFile(reportPath, html, "utf8");
+    logger.info(`Report written: ${reportPath}`);
+
+    const reportUri = vscode.Uri.file(reportPath);
+    vscode.window
+      .showInformationMessage(
+        `Text Utils: Report ready${editsApplied ? "" : " (no edits applied)"}.`,
+        "Open Report",
+      )
+      .then((choice) => {
+        if (choice === "Open Report") {
+          vscode.env.openExternal(reportUri);
+        }
+      });
+  } catch (err) {
+    const reason = err instanceof Error ? err.message : String(err);
+    logger.error(`Failed to write report: ${reason}`);
+  }
+}
+
 export async function runNormalizeCommand(
   context?: vscode.ExtensionContext,
 ): Promise<void> {
@@ -194,6 +244,7 @@ export async function runNormalizeCommand(
 
       if (choice !== "Ignore and Apply Known Fixes") {
         logger.warn("Command ended without applying edits.");
+        await writeAndOpenReport(normalizedRanges, logger, editor.document.uri.toString(), false);
         return; // dismissed
       }
     }
@@ -209,6 +260,7 @@ export async function runNormalizeCommand(
     });
 
     logger.info(`Edit transaction success=${didEdit}`);
+    await writeAndOpenReport(normalizedRanges, logger, editor.document.uri.toString(), didEdit);
     logger.info("Command completed.");
   } catch (err) {
     const reason = err instanceof Error ? err.stack ?? err.message : String(err);

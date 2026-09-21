@@ -1,9 +1,23 @@
 import { TextUtilsConfig } from "./config";
 
+export type CharMapping = {
+  original: string;
+  originalCodePoint: number;
+  /** The replacement string if mapped; the char itself if not mapped (pass-through). */
+  replacement: string;
+  /** True when the char was found in config.map. */
+  mapped: boolean;
+  /** True when the char is disallowed by the regex AND was not in config.map. */
+  unmapped: boolean;
+  /** True when the pass-through char is disallowed and not in allowedOutputChars. */
+  illegalOutput: boolean;
+};
+
 export type NormalizeResult = {
   text: string;
   unmappedInputSamples: string[];
   illegalOutputSamples: string[];
+  charMappings: CharMapping[];
 };
 
 export type NormalizeTraceEvent =
@@ -46,6 +60,7 @@ export function normalizeText(
 
   const unmapped = new Set<string>();
   const outParts: string[] = [];
+  const charMappings: CharMapping[] = [];
   let inputIndex = 0;
 
   // Iterate by Unicode code points (for-of does the right thing)
@@ -63,6 +78,15 @@ export function normalizeText(
     } else {
       outParts.push(replacement);
     }
+
+    charMappings.push({
+      original: ch,
+      originalCodePoint: ch.codePointAt(0) ?? 0,
+      replacement: value,
+      mapped,
+      unmapped: !mapped && disallowedInput,
+      illegalOutput: !mapped && disallowedInput && !config.allowedOutputChars.has(ch),
+    });
 
     options?.onTrace?.({
       kind: "input",
@@ -110,5 +134,6 @@ export function normalizeText(
     text: out,
     unmappedInputSamples: Array.from(unmapped).slice(0, 20),
     illegalOutputSamples: Array.from(illegalOutput).slice(0, 20),
+    charMappings,
   };
 }
