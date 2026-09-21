@@ -64,6 +64,16 @@ code .
 
 If `code` is not installed, open VS Code and use `File -> Open Folder...` and select `text-utils`.
 
+## Install into VS Code (packaged build)
+
+To use the extension in your normal VS Code window rather than the debug host, run the install script from the repo root:
+
+```bash
+./install.sh
+```
+
+It packages `text-utils` into a `.vsix` (compiling first), installs it with `code --install-extension --force`, and prints a reminder to reload the window. Requires the `code` command on your PATH. It uses `vsce` if installed, otherwise `npx @vscode/vsce`.
+
 ## Run the extension in VS Code (Extension Development Host)
 
 This is the main path for local testing.
