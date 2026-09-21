@@ -43,7 +43,7 @@ type RawLoggingConfig = Partial<{
   showOutputChannelOnRun: unknown;
 }>;
 
-function decodeEscapes(s: string): string {
+export function decodeEscapes(s: string): string {
   return s.replace(
     /\\u\{([0-9a-fA-F]+)\}|\\u([0-9a-fA-F]{4})|\\n|\\t|\\r|\\\\/g,
     (m, braced, four) => {
@@ -174,4 +174,74 @@ export function getTextUtilsConfig(): TextUtilsConfig {
   const rawLogging = cfg.get<unknown>("logging");
 
   return buildConfigFromRaw(raw, disallowedRegexSetting, rawLogging);
+}
+
+/**
+ * Inverse of decodeEscapes, used when writing entries back to settings.
+ * Printable ASCII is kept literal; everything else becomes \n, \t, \r, \\ or \uXXXX.
+ */
+export function encodeEscapes(s: string): string {
+  let out = "";
+  for (const ch of s) {
+    const cp = ch.codePointAt(0) ?? 0;
+    if (ch === "\\") {
+      out += "\\\\";
+    } else if (ch === "\n") {
+      out += "\\n";
+    } else if (ch === "\t") {
+      out += "\\t";
+    } else if (ch === "\r") {
+      out += "\\r";
+    } else if (cp >= 0x20 && cp <= 0x7e) {
+      out += ch;
+    } else if (cp > 0xffff) {
+      out += `\\u{${cp.toString(16).toUpperCase()}}`;
+    } else {
+      out += `\\u${cp.toString(16).toUpperCase().padStart(4, "0")}`;
+    }
+  }
+  return out;
+}
+
+/** Returns a copy of `config` with extra map entries; allowedOutputChars is extended to match. */
+export function extendConfig(
+  config: TextUtilsConfig,
+  entries: Map<string, string>,
+): TextUtilsConfig {
+  const map = new Map(config.map);
+  const allowedOutputChars = new Set(config.allowedOutputChars);
+
+  for (const [from, to] of Array.from(entries.entries())) {
+    map.set(from, to);
+    for (const ch of to) {
+      allowedOutputChars.add(ch);
+    }
+  }
+
+  return { ...config, map, allowedOutputChars };
+}
+
+/**
+ * Persists map entries to `textUtils.map` at the given target.
+ * Only the chosen scope's own entries are read and rewritten, so the
+ * package defaults are not copied into the user's settings file.
+ */
+export async function saveMapEntries(
+  entries: Map<string, string>,
+  target: vscode.ConfigurationTarget,
+): Promise<void> {
+  const cfg = vscode.workspace.getConfiguration("textUtils");
+  const inspected = cfg.inspect<Record<string, RawMapEntry>>("map");
+  const existing =
+    target === vscode.ConfigurationTarget.Workspace
+      ? inspected?.workspaceValue
+      : inspected?.globalValue;
+
+  const description = `Added via Text Utils prompt (${new Date().toISOString().slice(0, 10)})`;
+  const merged: Record<string, RawMapEntry> = { ...(existing ?? {}) };
+  for (const [from, to] of Array.from(entries.entries())) {
+    merged[encodeEscapes(from)] = { replaceWith: encodeEscapes(to), description };
+  }
+
+  await cfg.update("map", merged, target);
 }
